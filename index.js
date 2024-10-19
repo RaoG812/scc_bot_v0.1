@@ -1,13 +1,13 @@
 const { Telegraf } = require('telegraf');
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 
-// Replace these with your actual values
-const BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN';
-const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID';
-const CLIENT_ID = 'YOUR_CLIENT_ID';
-const CLIENT_SECRET = 'YOUR_CLIENT_SECRET';
-const REDIRECT_URI = 'YOUR_REDIRECT_URI';
-const API_KEY = 'YOUR_API_KEY';
+// Use environment variables
+const BOT_TOKEN = process.env.BOT_TOKEN;
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
+const CLIENT_ID = process.env.CLIENT_ID;
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
+const REDIRECT_URI = process.env.REDIRECT_URI;
+const API_KEY = process.env.API_KEY;
 
 const bot = new Telegraf(BOT_TOKEN);
 const doc = new GoogleSpreadsheet(SPREADSHEET_ID);
