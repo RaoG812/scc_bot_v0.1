@@ -1,0 +1,12 @@
+{
+  "name": "telegram-bot",
+  "version": "1.0.0",
+  "main": "api/telegram-webhook.js",
+  "scripts": {
+    "start": "node api/telegram-webhook.js"
+  },
+  "dependencies": {
+    "telegraf": "^4.4.0",
+    "googleapis": "^39.2.0"
+  }
+}
