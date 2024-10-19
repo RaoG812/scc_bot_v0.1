@@ -1,55 +1,119 @@
-const { Telegraf } = require('telegraf');
-const { GoogleSpreadsheet } = require('google-spreadsheet');
+const fs = require('fs').promises;
+const path = require('path');
+const process = require('process');
+const { authenticate } = require('@google-cloud/local-auth');
+const { google } = require('googleapis');
+const TelegramBot = require('node-telegram-bot-api');
 
-// Use environment variables
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
-const CLIENT_ID = process.env.CLIENT_ID;
-const CLIENT_SECRET = process.env.CLIENT_SECRET;
-const REDIRECT_URI = process.env.REDIRECT_URI;
-const API_KEY = process.env.API_KEY;
+// Replace with your actual bot token from BotFather
+const TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN';
+const bot = new TelegramBot(TOKEN, { polling: true });
 
-const bot = new Telegraf(BOT_TOKEN);
-const doc = new GoogleSpreadsheet(SPREADSHEET_ID);
+// Google Sheets API setup
+const SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly'];
+const TOKEN_PATH = path.join(process.cwd(), 'token.json');
+const CREDENTIALS_PATH = path.join(process.cwd(), 'credentials.json');
 
-// Middleware to handle user authentication
-bot.start((ctx) => ctx.reply('Welcome! Please enter your membership card number.'));
+// Commands
+const MAIN_CHANNEL = "Main Channel";
+const SHOPPING_BRANCH = "Shopping Branch";
+const PRIVATE_CHAT = "Private Chat";
 
-bot.on('text', async (ctx) => {
-    const membershipCardNumber = ctx.message.text;
-    await authenticateUser(membershipCardNumber, ctx);
+// Load saved credentials
+async function loadSavedCredentialsIfExist() {
+  try {
+    const content = await fs.readFile(TOKEN_PATH);
+    const credentials = JSON.parse(content);
+    return google.auth.fromJSON(credentials);
+  } catch (err) {
+    return null;
+  }
+}
+
+// Save credentials
+async function saveCredentials(client) {
+  const content = await fs.readFile(CREDENTIALS_PATH);
+  const keys = JSON.parse(content);
+  const key = keys.installed || keys.web;
+  const payload = JSON.stringify({
+    type: 'authorized_user',
+    client_id: key.client_id,
+    client_secret: key.client_secret,
+    refresh_token: client.credentials.refresh_token,
+  });
+  await fs.writeFile(TOKEN_PATH, payload);
+}
+
+// Authorize and get Google Sheets API client
+async function authorize() {
+  let client = await loadSavedCredentialsIfExist();
+  if (client) {
+    return client;
+  }
+  client = await authenticate({
+    scopes: SCOPES,
+    keyfilePath: CREDENTIALS_PATH,
+  });
+  if (client.credentials) {
+    await saveCredentials(client);
+  }
+  return client;
+}
+
+// Authenticate user and return their tier
+async function authenticateUser(cardNumber) {
+  const auth = await authorize();
+  const sheets = google.sheets({ version: 'v4', auth });
+
+  const spreadsheetId = 'YOUR_SPREADSHEET_ID'; // Replace with your spreadsheet ID
+  const range = 'Members!A2:B'; // Adjust the range according to your sheet
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range,
+  });
+
+  const rows = res.data.values;
+  if (!rows || rows.length === 0) {
+    return null;
+  }
+
+  for (const row of rows) {
+    if (row[0] === cardNumber) {
+      return row[1]; // Return the membership tier
+    }
+  }
+
+  return null; // Not found
+}
+
+// Handle incoming messages
+bot.onText(/\/start/, (msg) => {
+  bot.sendMessage(msg.chat.id, 'Welcome! Please send your membership card number.');
 });
 
-async function authenticateUser(cardNumber, ctx) {
-    await doc.useApiKey(API_KEY);
-    await doc.loadInfo(); // Loads the document properties and worksheets
+bot.onText(/\/auth (.+)/, async (msg, match) => {
+  const cardNumber = match[1].trim();
+  const tier = await authenticateUser(cardNumber);
 
-    const sheet = doc.sheetsByIndex[0]; // Assuming the first sheet has your data
-    const rows = await sheet.getRows();
-
-    const user = rows.find(row => row.MembershipCardNumber === cardNumber); // Adjust the column name
-    if (user) {
-        const tier = user.MembershipTier; // Adjust the column name
-        ctx.reply(`Welcome back! Your membership tier is: ${tier}`);
-        navigateUser(tier, ctx);
-    } else {
-        ctx.reply('Authentication failed. Please check your membership card number.');
+  if (tier) {
+    bot.sendMessage(msg.chat.id, `Authentication successful! Your membership tier is: ${tier}`);
+    
+    // Navigate user based on tier
+    switch (tier.toLowerCase()) {
+      case 'basic':
+        bot.sendMessage(msg.chat.id, `You have access to: ${MAIN_CHANNEL}`);
+        break;
+      case 'gold':
+        bot.sendMessage(msg.chat.id, `You have access to: ${MAIN_CHANNEL} and ${SHOPPING_BRANCH}`);
+        break;
+      case 'supreme':
+        bot.sendMessage(msg.chat.id, `You have access to: ${MAIN_CHANNEL}, ${SHOPPING_BRANCH}, and ${PRIVATE_CHAT}`);
+        break;
+      default:
+        bot.sendMessage(msg.chat.id, 'Invalid membership tier.');
     }
-}
-
-function navigateUser(tier, ctx) {
-    // Logic to navigate the user based on their tier
-    if (tier === 'basic') {
-        ctx.reply('You have access to the basic features.');
-    } else if (tier === 'gold') {
-        ctx.reply('You have access to gold features and the shopping branch.');
-    } else if (tier === 'supreme') {
-        ctx.reply('You have full access to all features and private chats.');
-    } else {
-        ctx.reply('Unknown membership tier.');
-    }
-}
-
-bot.launch().then(() => {
-    console.log('Bot is running...');
+  } else {
+    bot.sendMessage(msg.chat.id, 'Authentication failed! Please check your card number.');
+  }
 });
