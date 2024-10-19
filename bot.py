@@ -5,22 +5,8 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-# Command handler to start the bot
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text("Welcome! Please enter your membership card number.")
-
-# Message handler to process card number
-def handle_message(update: Update, context: CallbackContext):
-    card_number = update.message.text
-    membership_tier = authenticate_member(card_number)
-
-    if membership_tier:
-        update.message.reply_text(f"Authenticated! Your membership tier is: {membership_tier}")
-        # Here you can add logic to navigate based on membership tier
-    else:
-        update.message.reply_text("Authentication failed. Please check your card number.")
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
@@ -59,30 +45,28 @@ def authenticate_member(card_number):
         return None
 
 # Command handler to start the bot
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text("Welcome! Please enter your membership card number.")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Welcome! Please enter your membership card number.")
 
 # Message handler to process card number
-def handle_message(update: Update, context: CallbackContext):
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     card_number = update.message.text
     membership_tier = authenticate_member(card_number)
 
     if membership_tier:
-        update.message.reply_text(f"Authenticated! Your membership tier is: {membership_tier}")
+        await update.message.reply_text(f"Authenticated! Your membership tier is: {membership_tier}")
         # Here you can add logic to navigate based on membership tier
     else:
-        update.message.reply_text("Authentication failed. Please check your card number.")
+        await update.message.reply_text("Authentication failed. Please check your card number.")
 
 # Main function to run the bot
 def main():
-    updater = Updater("YOUR_TELEGRAM_BOT_TOKEN")  # Replace with your bot token
-    dp = updater.dispatcher
+    application = ApplicationBuilder().token("YOUR_TELEGRAM_BOT_TOKEN").build()  # Replace with your bot token
 
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    updater.start_polling()
-    updater.idle()
+    application.run_polling()
 
 if __name__ == "__main__":
     main()
