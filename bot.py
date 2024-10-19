@@ -26,7 +26,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 # Google Sheets API configuration
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
-SAMPLE_SPREADSHEET_ID = "YOUR_SPREADSHEET_ID"  # Replace with your spreadsheet ID
+SAMPLE_SPREADSHEET_ID = "1m0wrn2aaCY8wdKIFpxKg_k1O8ZMf1impeOIfAymcMnw"  # Replace with your spreadsheet ID
 SAMPLE_RANGE_NAME = "Members!A2:C"  # Adjust range as necessary
 
 # Initialize credentials
