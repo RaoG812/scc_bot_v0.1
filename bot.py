@@ -2,18 +2,31 @@ import os
 import logging
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
+# Command handler to start the bot
+def start(update: Update, context: CallbackContext):
+    update.message.reply_text("Welcome! Please enter your membership card number.")
+
+# Message handler to process card number
+def handle_message(update: Update, context: CallbackContext):
+    card_number = update.message.text
+    membership_tier = authenticate_member(card_number)
+
+    if membership_tier:
+        update.message.reply_text(f"Authenticated! Your membership tier is: {membership_tier}")
+        # Here you can add logic to navigate based on membership tier
+    else:
+        update.message.reply_text("Authentication failed. Please check your card number.")
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 # Google Sheets API configuration
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
-SAMPLE_SPREADSHEET_ID = "1m0wrn2aaCY8wdKIFpxKg_k1O8ZMf1impeOIfAymcMnw"  # Replace with your spreadsheet ID
+SAMPLE_SPREADSHEET_ID = "YOUR_SPREADSHEET_ID"  # Replace with your spreadsheet ID
 SAMPLE_RANGE_NAME = "Members!A2:C"  # Adjust range as necessary
 
 # Initialize credentials
